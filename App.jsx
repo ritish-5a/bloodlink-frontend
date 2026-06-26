@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { Droplets, Hospital, Phone, MapPin, Search, Navigation } from 'lucide-react';
+import { Droplets, Hospital, Phone, Search, Navigation, Info, Activity } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix for Leaflet marker icons in React
+// Fix for Leaflet marker icons
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -25,8 +25,6 @@ export default function App() {
   useEffect(() => {
     navigator.geolocation.getCurrentPosition((p) => {
       setUserLoc({ lat: p.coords.latitude, lng: p.coords.longitude });
-    }, () => {
-       console.log("Using default coordinates");
     });
   }, []);
 
@@ -35,31 +33,40 @@ export default function App() {
     try {
       const res = await axios.get(`https://bloodlink-pro-b.onrender.com/find-nearby?user_lat=${userLoc.lat}&user_lng=${userLoc.lng}`);
       setData(res.data);
-    } catch (e) {
-      alert("Error: Make sure the Python Backend is running on Port 8000!");
+    } catch (e) { 
+      alert("Backend is waking up... Please try again in 10 seconds."); 
     }
     setLoading(false);
   };
 
+  // --- INTERNAL STYLES (Guarantees the Premium Look) ---
+  const styles = {
+    nav: { backgroundColor: '#e11d48', padding: '15px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10000, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' },
+    btn: { backgroundColor: 'white', color: '#e11d48', padding: '10px 25px', borderRadius: '50px', border: 'none', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
+    card: { backgroundColor: 'white', padding: '20px', borderRadius: '25px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+    iconBox: (type) => ({ padding: '12px', borderRadius: '15px', backgroundColor: type === 'Hospital' ? '#eff6ff' : '#fff1f2', color: type === 'Hospital' ? '#2563eb' : '#e11d48' }),
+    callBtn: { backgroundColor: '#0f172a', color: 'white', padding: '15px', borderRadius: '15px', display: 'flex', alignItems: 'center', textDecoration: 'none' }
+  };
+
   return (
-    <div className="min-h-screen text-slate-900 bg-slate-50 font-sans">
-      <nav className="bg-rose-600 text-white p-5 shadow-xl sticky top-0 z-[9999]">
-        <div className="max-w-6xl mx-auto flex justify-between items-center text-center sm:text-left">
-          <h1 className="text-2xl font-black italic tracking-tighter flex items-center gap-2">
-            <Droplets className="fill-white" /> BLOODLINK PRO
-          </h1>
-          <button onClick={searchHelp} className="bg-white text-rose-600 px-8 py-2.5 rounded-full font-black shadow-lg hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-2">
-            {loading ? "Searching..." : <><Search size={20}/> Find Emergency Help</>}
-          </button>
-        </div>
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', paddingBottom: '50px' }}>
+      <nav style={styles.nav}>
+        <h1 style={{ fontSize: '22px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Activity size={28} /> BLOODLINK PRO
+        </h1>
+        <button onClick={searchHelp} style={styles.btn}>
+          {loading ? "Searching..." : <><Search size={18}/> FIND HELP</>}
+        </button>
       </nav>
 
-      <main className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div className="h-[550px] sticky top-24 bg-white p-2 rounded-[2rem] shadow-2xl border border-slate-200">
-          <MapContainer center={[userLoc.lat, userLoc.lng]} zoom={13} style={{height: '100%', width: '100%'}}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px', display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? '1.2fr 1fr' : '1fr', gap: '30px' }}>
+        
+        {/* MAP */}
+        <div style={{ height: '500px', borderRadius: '30px', overflow: 'hidden', border: '5px solid white', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' }}>
+          <MapContainer center={[userLoc.lat, userLoc.lng]} zoom={13} style={{ height: '100%', width: '100%' }}>
             <ChangeView center={[userLoc.lat, userLoc.lng]} />
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Marker position={[userLoc.lat, userLoc.lng]}><Popup>Your Location</Popup></Marker>
+            <Marker position={[userLoc.lat, userLoc.lng]}><Popup>You are here</Popup></Marker>
             {data.map(item => (
               <Marker key={item.id} position={[item.lat, item.lng]}>
                 <Popup><strong>{item.name}</strong><br/>{item.type}</Popup>
@@ -68,35 +75,32 @@ export default function App() {
           </MapContainer>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <Navigation size={16}/> Nearby Resources
-          </h2>
+        {/* LIST */}
+        <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: '900', color: '#94a3b8', letterSpacing: '2px', marginBottom: '20px' }}>NEARBY RESOURCES (15KM)</h2>
           
           {data.length === 0 && (
-            <div className="p-16 text-center bg-white rounded-[2.5rem] border-4 border-dashed border-slate-100 text-slate-400 font-bold">
-               Search above to find blood donors & hospitals.
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', border: '2px dashed #e2e8f0', borderRadius: '30px' }}>
+              Tap "FIND HELP" to search for donors.
             </div>
           )}
-          
+
           {data.map(item => (
-            <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between hover:border-rose-400 transition-all">
-              <div className="flex items-center gap-5">
-                <div className={`p-4 rounded-2xl ${item.type === 'Hospital' ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'}`}>
-                  {item.type === 'Hospital' ? <Hospital size={32}/> : <Droplets size={32}/>}
+            <div key={item.id} style={styles.card}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={styles.iconBox(item.type)}>
+                  {item.type === 'Hospital' ? <Hospital size={24}/> : <Droplets size={24}/>}
                 </div>
                 <div>
-                  <h3 className="font-black text-xl text-slate-800 tracking-tight">{item.name}</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.type} • {item.distance} KM AWAY</p>
+                  <h3 style={{ margin: 0, fontWeight: '900', fontSize: '18px' }}>{item.name}</h3>
+                  <p style={{ margin: 0, fontSize: '10px', fontWeight: '800', color: '#94a3b8' }}>{item.type.toUpperCase()} • {item.distance} KM AWAY</p>
                 </div>
               </div>
-              <a href={`tel:${item.contact}`} className="bg-slate-900 text-white p-5 rounded-2xl hover:bg-rose-600 transition-all">
-                <Phone size={24} />
-              </a>
+              <a href={`tel:${item.contact}`} style={styles.callBtn}><Phone size={20} /></a>
             </div>
           ))}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
